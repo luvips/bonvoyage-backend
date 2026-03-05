@@ -159,3 +159,35 @@ export async function PATCH(req: Request, { params }: Params) {
     return err('Internal server error', 500)
   }
 }
+
+// ------------------------------------------------------------
+//  DELETE /api/trips/[tripId]
+//  Elimina el viaje (solo DRAFT o CANCELLED)
+//  Llama a fn_delete_trip
+// ------------------------------------------------------------
+export async function DELETE(_req: Request, { params }: Params) {
+  const { userId: clerkId } = await auth()
+  if (!clerkId) return err('Unauthorized', 401)
+
+  const { tripId } = await params
+
+  try {
+    const userId = await resolveUserId(clerkId)
+    if (!userId) return err('User not found', 404)
+
+    await db.query(
+      `SELECT fn_delete_trip($1, $2)`,
+      [tripId, userId]
+    )
+
+    return ok({ deleted: true, trip_id: tripId })
+
+  } catch (error: unknown) {
+    console.error('[DELETE /trips/:tripId]', error)
+    if (error instanceof Error) {
+      if (error.message.includes('not found or access denied')) return err('Trip not found', 404)
+      if (error.message.includes('Only DRAFT or CANCELLED'))    return err(error.message, 400)
+    }
+    return err('Internal server error', 500)
+  }
+}
