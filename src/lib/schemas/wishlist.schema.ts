@@ -1,17 +1,11 @@
 import { z } from 'zod'
 
-// ============================================================
-//  SCHEMAS DE ENTRADA
-// ============================================================
 
 export const AddWishlistItemSchema = z.object({
   country: z.string().min(1).max(100),
   city:    z.string().min(1).max(150),
 })
 
-// ============================================================
-//  SCHEMAS DE RESPUESTA
-// ============================================================
 
 export const WishlistItemResponseSchema = z.object({
   wishlist_id:       z.string().uuid(),
@@ -30,9 +24,6 @@ export const WishlistItemResponseSchema = z.object({
   min_flight_price:  z.number().nullable(),
 })
 
-// ============================================================
-//  TIPOS INFERIDOS
-// ============================================================
 
 export type AddWishlistItemInput    = z.infer<typeof AddWishlistItemSchema>
 export type WishlistItemResponse    = z.infer<typeof WishlistItemResponseSchema>
