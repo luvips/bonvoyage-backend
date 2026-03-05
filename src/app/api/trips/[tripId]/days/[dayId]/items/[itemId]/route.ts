@@ -97,7 +97,6 @@ export async function DELETE(_req: Request, { params }: Params) {
 
     await db.query(`DELETE FROM itinerary_items WHERE item_id = $1`, [itemId])
 
-    // Recalcular order_position de los ítems restantes del día
     await db.query(`SELECT fn_reorder_day_items($1)`, [dayId])
 
     return ok({ deleted: true, item_id: itemId })
