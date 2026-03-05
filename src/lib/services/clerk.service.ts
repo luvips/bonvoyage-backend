@@ -1,83 +1,97 @@
+import { z } from 'zod'
 import db from '@/lib/db'
+import { UserResponseSchema } from '@/lib/schemas/user.schema'
 
 
-export type Provider = 'LOCAL' | 'GOOGLE' | 'APPLE'
+const ProviderSchema = z.enum(['LOCAL', 'GOOGLE', 'APPLE'])
 
-export interface CreateUserData {
-  email:      string
-  firstName:  string
-  lastName:   string
-  provider:   Provider
-  providerId?: string    
+const CreateUserSchema = z.object({
+  email:      z.string().email(),
+  firstName:  z.string().min(1),
+  lastName:   z.string(),
+  provider:   ProviderSchema,
+  providerId: z.string().optional(),
+})
+
+
+export type Provider       = z.infer<typeof ProviderSchema>
+export type CreateUserData = z.infer<typeof CreateUserSchema>
+
+export async function resolveUserId(clerkId: string): Promise<string | null> {
+  const result = await db.query<{ user_id: string }>(
+    `SELECT u.user_id
+     FROM users u
+     JOIN user_identities ui ON ui.user_id = u.user_id
+     WHERE ui.provider_id = $1
+       AND u.deleted_at   IS NULL
+     LIMIT 1`,
+    [clerkId]
+  )
+  return result.rows[0]?.user_id ?? null
 }
 
-export interface UserRecord {
-  user_id:    string
-  email:      string
-  first_name: string
-  last_name:  string
-  status:     string
-}
-
-export async function findUserByEmail(email: string): Promise<UserRecord | null> {
-  const result = await db.query<UserRecord>(
-    `SELECT user_id, email, first_name, last_name, status
-     FROM users
-     WHERE email      = $1
-       AND deleted_at IS NULL
+export async function findUserByEmail(email: string) {
+  const result = await db.query(
+    `SELECT u.user_id, u.email, u.first_name, u.last_name,
+            u.role, u.status, u.created_at, u.updated_at,
+            a.name      AS avatar_name,
+            a.image_url AS avatar_url,
+            ui.provider
+     FROM users u
+     LEFT JOIN avatars         a  ON a.avatar_id = u.avatar_id
+     LEFT JOIN user_identities ui ON ui.user_id  = u.user_id
+     WHERE u.email      = $1
+       AND u.deleted_at IS NULL
      LIMIT 1`,
     [email]
   )
-  return result.rows[0] ?? null
+
+  if (!result.rows[0]) return null
+  return UserResponseSchema.parse(result.rows[0])
 }
 
-
-export async function findUserByProviderId(
-  provider:   Provider,
-  providerId: string
-): Promise<UserRecord | null> {
-  const result = await db.query<UserRecord>(
-    `SELECT u.user_id, u.email, u.first_name, u.last_name, u.status
+export async function findUserById(userId: string) {
+  const result = await db.query(
+    `SELECT u.user_id, u.email, u.first_name, u.last_name,
+            u.role, u.status, u.created_at, u.updated_at,
+            a.name      AS avatar_name,
+            a.image_url AS avatar_url,
+            ui.provider
      FROM users u
-     JOIN user_identities ui ON ui.user_id = u.user_id
-     WHERE ui.provider    = $1
-       AND ui.provider_id = $2
-       AND u.deleted_at   IS NULL
-     LIMIT 1`,
-    [provider, providerId]
-  )
-  return result.rows[0] ?? null
-}
-
-export async function findUserById(userId: string): Promise<UserRecord | null> {
-  const result = await db.query<UserRecord>(
-    `SELECT user_id, email, first_name, last_name, status
-     FROM users
-     WHERE user_id  = $1
-       AND deleted_at IS NULL
+     LEFT JOIN avatars         a  ON a.avatar_id = u.avatar_id
+     LEFT JOIN user_identities ui ON ui.user_id  = u.user_id
+     WHERE u.user_id    = $1
+       AND u.deleted_at IS NULL
      LIMIT 1`,
     [userId]
   )
-  return result.rows[0] ?? null
+
+  if (!result.rows[0]) return null
+  return UserResponseSchema.parse(result.rows[0])
 }
 
 
 export async function createUserFromClerk(data: CreateUserData): Promise<string> {
+  const parsed = CreateUserSchema.safeParse(data)
+  if (!parsed.success) {
+    throw new Error(`Invalid user data: ${parsed.error.message}`)
+  }
+
+  const { email, firstName, lastName, provider, providerId } = parsed.data
   const client = await db.connect()
 
   try {
     await client.query('BEGIN')
-
     const userResult = await client.query<{ user_id: string }>(
       `INSERT INTO users (email, first_name, last_name)
        VALUES ($1, $2, $3)
        RETURNING user_id`,
-      [data.email, data.firstName, data.lastName]
+      [email, firstName, lastName]
     )
     const userId = userResult.rows[0].user_id
 
-    if (data.provider === 'LOCAL') {
-       await client.query(
+    if (provider === 'LOCAL') {
+      await client.query(
         `INSERT INTO user_identities (user_id, provider, provider_id, password_hash)
          VALUES ($1, 'LOCAL', NULL, 'MANAGED_BY_CLERK')`,
         [userId]
@@ -86,25 +100,21 @@ export async function createUserFromClerk(data: CreateUserData): Promise<string>
       await client.query(
         `INSERT INTO user_identities (user_id, provider, provider_id)
          VALUES ($1, $2, $3)`,
-        [userId, data.provider, data.providerId]
+        [userId, provider, providerId]
       )
     }
 
     await client.query(
-      `INSERT INTO user_preferences (user_id)
-       VALUES ($1)`,
+      `INSERT INTO user_preferences (user_id) VALUES ($1)`,
       [userId]
     )
 
     await client.query(
       `INSERT INTO email_notifications
-         (user_id, notification_type, template_data, status, scheduled_for,
-          related_entity_type, related_entity_id)
+         (user_id, notification_type, template_data,
+          status, scheduled_for, related_entity_type, related_entity_id)
        VALUES ($1, 'WELCOME', $2::jsonb, 'PENDING', NOW(), 'USER', $1)`,
-      [
-        userId,
-        JSON.stringify({ first_name: data.firstName, email: data.email }),
-      ]
+      [userId, JSON.stringify({ first_name: firstName, email })]
     )
 
     await client.query('COMMIT')
