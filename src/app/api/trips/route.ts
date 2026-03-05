@@ -125,6 +125,7 @@ export async function POST(req: Request) {
 
   } catch (error: unknown) {
     console.error('[POST /trips]', error)
+    // Errores de validación desde la stored procedure
     if (error instanceof Error && error.message.includes('cannot exceed 30 days')) {
       return err('Trip cannot exceed 30 days', 400)
     }
