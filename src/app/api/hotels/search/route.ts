@@ -52,10 +52,12 @@ const cleanHotels = hotelList.map((hotel: Record<string, any>) => {
     });
 
   } catch (err) {
-        // Esto te dirá exactamente qué campo falló en la terminal
-        console.error("❌ Error de validación en este hotel:", err);
-        throw err;
+    const detalle = err instanceof Error ? err.message : "Error desconocido";
 
+    return NextResponse.json(
+      { error: "Error al buscar hoteles", detalle },
+      { status: 500 }
+    );
   }
 
 }
