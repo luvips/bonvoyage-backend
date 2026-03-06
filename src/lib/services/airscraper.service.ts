@@ -59,6 +59,15 @@ function getRapidApiHeaders() {
 
 type QueryValue = string | number | undefined;
 
+type LocationCandidate = {
+  navigation?: {
+    entityId?: string;
+    relevantHotelParams?: {
+      entityId?: string;
+    };
+  };
+};
+
 export class AirscraperServiceError extends Error {
   statusCode: number;
 
@@ -118,6 +127,37 @@ export async function searchHotels(params: HotelSearchParams) {
     limit = 30,
   } = params;
 
+  const destinationValue = destination.trim();
+  const isNumericDestination = /^\d+$/.test(destinationValue);
+
+  let hotelEntityId = destinationValue;
+
+  if (!isNumericDestination) {
+    const locationResult = await searchLocation(destinationValue);
+    const candidates: LocationCandidate[] = Array.isArray(locationResult?.data)
+      ? locationResult.data
+      : [];
+
+    const match = candidates.find((candidate) => {
+      return Boolean(
+        candidate?.navigation?.relevantHotelParams?.entityId ||
+          candidate?.navigation?.entityId
+      );
+    });
+
+    const resolvedEntityId =
+      match?.navigation?.relevantHotelParams?.entityId || match?.navigation?.entityId;
+
+    if (!resolvedEntityId) {
+      throw new AirscraperServiceError(
+        "No se pudo resolver el destino. Usa un entityId numérico o un nombre de ciudad válido.",
+        400
+      );
+    }
+
+    hotelEntityId = String(resolvedEntityId);
+  }
+
   return skyScraperGet("/api/v1/hotels/searchHotels", {
     limit,
     sorting: "-relevance",
@@ -126,7 +166,7 @@ export async function searchHotels(params: HotelSearchParams) {
     adults,
     rooms,
     currency,
-    entityId: destination,
+    entityId: hotelEntityId,
     checkin: checkIn,
     checkout: checkOut,
   });
