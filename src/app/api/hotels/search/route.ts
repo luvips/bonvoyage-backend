@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchHotels } from "@/lib/services/airscraper.service"; 
+import { CleanHotelSchema } from "@/lib/schemas/hotel-response.schema";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -18,51 +19,43 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  try {
-const rawHotelData: any = await searchHotels({      destination,
-      checkIn,
-      checkOut,
-      adults,
-      rooms,
-      currency
+try {
+    const rawHotelData: any = await searchHotels({
+      destination, checkIn, checkOut, adults, rooms, currency
     });
+
     const hotelList = rawHotelData?.data?.hotels || [];
 
     if (!Array.isArray(hotelList)) {
-      return NextResponse.json({ 
-        success: true, 
-        count: 0, 
-        data: [],
-        debug: "No se encontró un arreglo de hoteles en la respuesta" 
-      });
+      return NextResponse.json({ success: true, count: 0, data: [] });
     }
+
 const cleanHotels = hotelList.map((hotel: Record<string, any>) => {
-      const lng = hotel?.coordinates?.[0] || null;
-      const lat = hotel?.coordinates?.[1] || null;
-
-      return {
-        id: hotel?.hotelId || null, 
-        name: hotel?.name || "Hotel sin nombre",
-        price: hotel?.price || "Precio no disponible",
-        rating: hotel?.rating?.value || hotel?.stars || "N/A",
-        imageUrl: hotel?.heroImage || null,
-        latitude: lat,
-        longitude: lng,
+      const rawCleanHotel = {
+        id: hotel?.hotelId || null,
+        name: hotel?.name,
+        // Usamos || "" para asegurar que si es null, al menos mande un string vacío y Zod no se queje
+        destination: destination || "", 
+        price: hotel?.price,
+        rating: hotel?.rating?.value || hotel?.stars,
+        imageUrl: hotel?.heroImage,
+        latitude: hotel?.coordinates?.[1] || null,
+        longitude: hotel?.coordinates?.[0] || null,
       };
-    });
 
+      return CleanHotelSchema.parse(rawCleanHotel);
+    });
     return NextResponse.json({
       success: true,
       count: cleanHotels.length,
       data: cleanHotels
     });
 
-  } catch (error) {
-    console.error("Error procesando hoteles:", error);
-    return NextResponse.json(
-      { error: "Error al buscar hoteles" },
-      { status: 500 }
-    );
+  } catch (err) {
+        // Esto te dirá exactamente qué campo falló en la terminal
+        console.error("❌ Error de validación en este hotel:", err);
+        throw err;
+
   }
 
 }
