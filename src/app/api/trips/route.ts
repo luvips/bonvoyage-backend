@@ -101,7 +101,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       trip_name, start_date, end_date, currency, total_budget,
-      destination_name, destination_country, destination_city, city, latitude, longitude
+      destination_name, destination_country, destination_city, city, latitude, longitude,
+      destination_image,
     } = body;
 
     const normalizedDestinationName = typeof destination_name === 'string'
@@ -127,19 +128,27 @@ export async function POST(req: NextRequest) {
 
     if (existingDest.rows.length > 0) {
       destId = existingDest.rows[0].destination_id;
+      // Update image_url if provided and not already set
+      if (destination_image) {
+        await db.query(
+          `UPDATE destinations SET image_url = $1 WHERE destination_id = $2 AND image_url IS NULL`,
+          [destination_image, destId]
+        );
+      }
     } else {
       const newDest = await db.query(`
-        INSERT INTO destinations (name, city, country, latitude, longitude)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO destinations (name, city, country, latitude, longitude, image_url)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING destination_id;
       `, [
         normalizedDestinationName,
         safeDestinationCity,
-        destination_country || 'Unknown', 
-        latitude || null, 
-        longitude || null
+        destination_country || 'Unknown',
+        latitude || null,
+        longitude || null,
+        destination_image || null,
       ]);
-      
+
       destId = newDest.rows[0].destination_id;
     }
 
