@@ -48,7 +48,8 @@ export async function PATCH(
 
     await db.query(`
       UPDATE trips 
-      SET planning_time_seconds = COALESCE(planning_time_seconds, 0) + $1
+      SET planning_time_seconds = COALESCE(planning_time_seconds, 0) + $1,
+          updated_at = NOW()
       WHERE trip_id = $2
         AND user_id = $3
     `, [seconds, tripId, internalUserId]);
