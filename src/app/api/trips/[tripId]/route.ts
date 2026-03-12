@@ -29,7 +29,8 @@ export async function GET(_req: Request, { params }: Params) {
       `SELECT
          t.trip_id, t.user_id, t.destination_id, t.trip_name,
          t.start_date, t.end_date, t.status, t.total_budget,
-         t.currency, t.is_favorite, t.confirmed_at,
+         t.currency, COALESCE(t.planning_time_seconds, 0) AS planning_time_seconds,
+         t.is_favorite, t.confirmed_at,
          t.created_at, t.updated_at,
          d.name      AS destination_name,
          d.city      AS destination_city,
