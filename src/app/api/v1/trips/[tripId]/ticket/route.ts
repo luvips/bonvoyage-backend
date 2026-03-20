@@ -3,11 +3,14 @@ import db from '@/lib/db'
 import { ok, err } from '@/lib/response'
 import { TicketResponseSchema } from '@/lib/schemas/trip.schema'
 
+type Params = { params: Promise<{ tripId: string }> }
+
 export async function GET(
   _req: Request,
-  { params }: { params: { tripId: string } }
+  { params }: Params
 ) {
   try {
+    const { tripId } = await params
     const { userId } = await auth()
     if (!userId) return err('No autorizado', 401)
 
@@ -20,7 +23,7 @@ export async function GET(
 
     const result = await db.query(
       `SELECT * FROM tickets WHERE trip_id = $1 AND user_id = $2`,
-      [params.tripId, internalUserId]
+      [tripId, internalUserId]
     )
 
     if (result.rows.length === 0) {
