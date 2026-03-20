@@ -150,3 +150,25 @@ export type MoveItemInput            = z.infer<typeof MoveItemSchema>
 export type TripResponse             = z.infer<typeof TripResponseSchema>
 export type ItineraryDay             = z.infer<typeof ItineraryDaySchema>
 export type ItineraryItemResponse    = z.infer<typeof ItineraryItemResponseSchema>
+
+export const TicketResponseSchema = z.object({
+  ticket_id:           z.string().uuid(),
+  trip_id:             z.string().uuid(),
+  presupuesto_total:   z.coerce.number(),
+  costo_acumulado:     z.coerce.number(),
+  balance_disponible:  z.coerce.number(),
+  total_lugares:       z.coerce.number(),
+  total_vuelos:        z.coerce.number(),
+  total_items:         z.coerce.number(),
+  estado_presupuesto:  z.enum(['SIN_DATOS', 'EN_RANGO', 'ADVERTENCIA', 'EXCEDIDO']),
+  updated_at:          z.coerce.date(),
+})
+
+export const TagSchema = z.object({
+  tag_id:   z.number(),
+  name:     z.string(),
+  category: z.enum(['TIPO_VIAJE', 'ACTIVIDAD', 'CLIMA', 'PRESUPUESTO', 'GENERAL']),
+})
+
+export type TicketResponse = z.infer<typeof TicketResponseSchema>
+export type Tag = z.infer<typeof TagSchema>
