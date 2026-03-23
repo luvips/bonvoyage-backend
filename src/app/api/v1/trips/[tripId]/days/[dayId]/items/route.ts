@@ -44,8 +44,12 @@ export async function GET(_req: Request, { params }: Params) {
          ii.notes,
          ii.status,
          ii.created_at,
-         ii.updated_at
+         ii.updated_at,
+         pr.extended_data->>'today_hours'          AS place_today_hours,
+         pr.extended_data->'weekly_hours'           AS place_weekly_hours,
+         (pr.extended_data->>'is_open_now')::boolean AS place_is_open_now
        FROM itinerary_items ii
+       LEFT JOIN place_references pr ON ii.place_reference_id = pr.reference_id
        WHERE ii.day_id = $1
        ORDER BY ii.order_position`,
       [dayId]
@@ -105,7 +109,10 @@ export async function POST(req: Request, { params }: Params) {
       if (!placeRefId && body.place_id) {
         const extendedData = JSON.stringify({
           photo_url: body.photo_url || null,
-          address: body.address || null
+          address: body.address || null,
+          today_hours: body.todayHours || null,
+          weekly_hours: body.weeklyHours || null,
+          is_open_now: body.isOpenNow ?? null,
         });
 
         const placeResult = await db.query(

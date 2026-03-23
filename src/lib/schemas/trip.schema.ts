@@ -139,6 +139,9 @@ export const ItineraryItemResponseSchema = z.object({
   status:              z.enum(['PLANNED', 'CONFIRMED', 'CANCELLED']),
   created_at:          z.coerce.date(),
   updated_at:          z.coerce.date(),
+  place_today_hours:   z.string().nullable().optional(),
+  place_weekly_hours:  z.array(z.string()).nullable().optional(),
+  place_is_open_now:   z.boolean().nullable().optional(),
 })
 
 
