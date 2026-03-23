@@ -15,11 +15,14 @@ type Params = { params: Promise<{ tripId: string }> }
 //  GET /api/trips/[tripId]
 //  Retorna el viaje con todos sus días e ítems enriquecidos
 // ------------------------------------------------------------
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function GET(_req: Request, { params }: Params) {
   const { userId: clerkId } = await auth()
   if (!clerkId) return err('Unauthorized', 401)
 
   const { tripId } = await params
+  if (!UUID_REGEX.test(tripId)) return err('Invalid trip ID', 400)
 
   try {
     const userId = await resolveUserId(clerkId)
