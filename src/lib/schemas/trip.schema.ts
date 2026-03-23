@@ -163,7 +163,7 @@ export const TicketResponseSchema = z.object({
   total_places:       z.coerce.number().catch(0),
   total_flights:        z.coerce.number().catch(0),
   total_items:         z.coerce.number().catch(0),
-  budget_status:  z.enum(['WITHOUT_DATA', 'WITHIN_BUDGET', 'WARNING', 'OVER_BUDGET']).nullish().transform(v => v ?? 'SIN_DATOS'),
+  budget_status:  z.enum(['WITHOUT_DATA', 'WITHIN_BUDGET', 'WARNING', 'OVER_BUDGET']).nullish().transform(v => v ?? 'WITHOUT_DATA'),
   updated_at:          z.coerce.date(),
 })
 
