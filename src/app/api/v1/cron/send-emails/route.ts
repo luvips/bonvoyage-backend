@@ -3,10 +3,10 @@ import { ok, err } from '@/lib/response'
 import { sendEmail, NotificationType } from '@/lib/services/email.service'
 
 // ------------------------------------------------------------
-//  POST /api/cron/send-emails
-//--  Protegido con CRON_SECRET para evitar llamadas externas
-//-- ------------------------------------------------------------
-export async function POST(req: Request) {
+//  GET /api/v1/cron/send-emails (Cambio importante: De POST a GET)
+//  Protegido con CRON_SECRET para evitar llamadas externas
+// ------------------------------------------------------------
+export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return err('Unauthorized', 401)
